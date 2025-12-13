@@ -11,9 +11,5 @@
       "src": "/(.*)",
       "dest": "index.py"
     }
-  ],
-  "env": {
-    "FLASK_ENV": "production"
-  },
-  "regions": ["sin1"]
+  ]
 }
