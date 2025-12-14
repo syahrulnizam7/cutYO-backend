@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
 from rembg import remove
 from PIL import Image
 import io
@@ -7,15 +6,6 @@ import base64
 import os
 
 app = Flask(__name__)
-
-# Enable CORS untuk semua routes
-CORS(app, resources={
-    r"/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
-    }
-})
 
 # Konfigurasi maksimal ukuran file (5MB)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
