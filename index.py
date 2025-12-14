@@ -1,11 +1,20 @@
 from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from rembg import remove
 from PIL import Image
 import io
 import base64
-import os
 
 app = Flask(__name__)
+
+# Enable CORS untuk semua routes
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # Konfigurasi maksimal ukuran file (5MB)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
@@ -29,16 +38,22 @@ def health():
 def remove_background():
     try:
         # Validasi request
-        if 'image' not in request.files and 'image_base64' not in request.json:
+        if 'image' not in request.files and not request.json:
             return jsonify({
                 'status': 'error',
                 'message': 'No image provided. Use "image" for file upload or "image_base64" for base64 string'
             }), 400
 
         # Ambil parameter quality (default: high)
-        quality = request.form.get('quality', 'high') if 'image' in request.files else request.json.get('quality', 'high')
-        output_format = request.form.get('format', 'png') if 'image' in request.files else request.json.get('format', 'png')
-        return_base64 = request.form.get('return_base64', 'false').lower() == 'true' if 'image' in request.files else request.json.get('return_base64', False)
+        if 'image' in request.files:
+            quality = request.form.get('quality', 'high')
+            output_format = request.form.get('format', 'png')
+            return_base64 = request.form.get('return_base64', 'false').lower() == 'true'
+        else:
+            data = request.json
+            quality = data.get('quality', 'high')
+            output_format = data.get('format', 'png')
+            return_base64 = data.get('return_base64', False)
 
         # Proses input image
         if 'image' in request.files:
@@ -53,6 +68,12 @@ def remove_background():
         else:
             # Base64 input
             image_base64 = request.json.get('image_base64')
+            if not image_base64:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No image_base64 provided'
+                }), 400
+            
             if ',' in image_base64:
                 image_base64 = image_base64.split(',')[1]
             input_image = base64.b64decode(image_base64)
@@ -132,16 +153,8 @@ def remove_background():
             'message': f'Error processing image: {str(e)}'
         }), 500
 
-# Handler untuk Vercel
-def handler(request):
-    with app.request_context(request.environ):
-        try:
-            return app.full_dispatch_request()
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': str(e)
-            }), 500
+# Export app untuk Vercel
+app = app
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
