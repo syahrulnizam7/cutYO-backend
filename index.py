@@ -10,7 +10,7 @@ app = Flask(__name__)
 # Enable CORS untuk semua routes
 CORS(app, resources={
     r"/*": {
-        "origins": "https://cutyoo.alangkun.fun",
+        "origins": "*",
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type"]
     }
