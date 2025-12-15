@@ -8,19 +8,16 @@ import gc
 
 app = Flask(__name__)
 
-# Enable CORS untuk semua routes
 CORS(app, resources={
     r"/*": {
-        "origins": "*",
+        "origins": "https://cutyo.alangkun.fun",
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type"]
     }
 })
 
-# Konfigurasi maksimal ukuran file (5MB)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-# Fungsi untuk resize image jika terlalu besar
 def resize_image_if_needed(image, max_dimension=2000):
     """
     Resize image jika dimensi lebih besar dari max_dimension
@@ -61,19 +58,16 @@ def health():
 
 @app.route('/api/remove-bg', methods=['POST', 'OPTIONS'])
 def remove_background():
-    # Handle preflight
     if request.method == 'OPTIONS':
         return '', 204
     
     try:
-        # Validasi request
         if 'image' not in request.files and not request.json:
             return jsonify({
                 'status': 'error',
                 'message': 'No image provided. Use "image" for file upload or "image_base64" for base64 string'
             }), 400
 
-        # Ambil parameter
         if 'image' in request.files:
             quality = request.form.get('quality', 'medium')  # Default ke medium
             output_format = request.form.get('format', 'png')
@@ -86,7 +80,6 @@ def remove_background():
             return_base64 = data.get('return_base64', False)
             max_size = int(data.get('max_size', 2000))
 
-        # Proses input image
         if 'image' in request.files:
             file = request.files['image']
             if file.filename == '':
@@ -97,7 +90,6 @@ def remove_background():
             
             input_image = file.read()
         else:
-            # Base64 input
             image_base64 = request.json.get('image_base64')
             if not image_base64:
                 return jsonify({
@@ -109,16 +101,13 @@ def remove_background():
                 image_base64 = image_base64.split(',')[1]
             input_image = base64.b64decode(image_base64)
 
-        # Load dan validasi image
         try:
             img = Image.open(io.BytesIO(input_image))
             original_size = img.size
             
-            # Resize jika terlalu besar
             img = resize_image_if_needed(img, max_dimension=max_size)
             resized_size = img.size
             
-            # Convert ke bytes untuk rembg
             img_byte_arr = io.BytesIO()
             img.save(img_byte_arr, format=img.format or 'PNG')
             img_byte_arr.seek(0)
@@ -130,7 +119,6 @@ def remove_background():
                 'message': f'Invalid image format: {str(e)}'
             }), 400
 
-        # Proses remove background dengan settings lebih ringan
         try:
             output_image = remove(
                 input_image_bytes,
@@ -145,18 +133,14 @@ def remove_background():
                 'message': f'Error removing background: {str(e)}. Try with smaller image or quality=medium'
             }), 500
 
-        # Convert ke PIL Image
         result_image = Image.open(io.BytesIO(output_image))
 
-        # Optimize output berdasarkan format
         output_buffer = io.BytesIO()
         
         if output_format.lower() == 'png':
-            # PNG dengan kompresi optimal
             result_image.save(output_buffer, format='PNG', optimize=True)
             mimetype = 'image/png'
         elif output_format.lower() in ['jpg', 'jpeg']:
-            # Convert RGBA ke RGB untuk JPEG
             if result_image.mode == 'RGBA':
                 rgb_image = Image.new('RGB', result_image.size, (255, 255, 255))
                 rgb_image.paste(result_image, mask=result_image.split()[3])
@@ -175,11 +159,9 @@ def remove_background():
 
         output_buffer.seek(0)
 
-        # Cleanup memory
         del img, result_image, input_image_bytes, output_image
         gc.collect()
 
-        # Return base64 atau file
         if return_base64:
             image_base64 = base64.b64encode(output_buffer.read()).decode('utf-8')
             return jsonify({
@@ -202,14 +184,12 @@ def remove_background():
             )
 
     except Exception as e:
-        gc.collect()  # Cleanup on error
+        gc.collect() 
         return jsonify({
             'status': 'error',
             'message': f'Error processing image: {str(e)}'
         }), 500
 
-# Export app untuk Vercel
-app = app
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
